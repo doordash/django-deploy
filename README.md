@@ -1,4 +1,4 @@
 django-deploy
 =============
 
-Enterprise iOS app deployment for Django
+In-house enterprise iOS app deployment for Django.
