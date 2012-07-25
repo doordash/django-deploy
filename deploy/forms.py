@@ -9,7 +9,8 @@ class AppForm(forms.ModelForm):
         if not 'plist' in self.files:
             raise forms.ValidationError('No plist file attached.')
         plist = self.files['plist']
-        if plist.content_type != 'text/xml':
+        extension = plist.name.split('.')[-1]
+        if extension != 'plist':
             raise forms.ValidationError('Invalid plist file.')
         return self.cleaned_data['plist']
 
@@ -17,7 +18,8 @@ class AppForm(forms.ModelForm):
         if not 'ipa' in self.files:
             raise forms.ValidationError('No ipa file attached.')
         ipa = self.files['ipa']
-        if ipa.content_type != 'application/octet-stream':
+        extension = ipa.name.split('.')[-1]
+        if extension != 'ipa':
             raise forms.ValidationError('Invalid ipa file.')
         return self.cleaned_data['ipa']
 
@@ -33,10 +35,11 @@ class AppForm(forms.ModelForm):
         return self.cleaned_data['version']
 
     def get_key_value_from_plist(self, key):
-        plist = self.files['plist']
-        dom = minidom.parse(plist)
+        if not hasattr(self, 'dom'):
+            plist = self.files['plist']
+            self.dom = minidom.parse(plist)
         value = None
-        for e in dom.getElementsByTagName('key'):
+        for e in self.dom.getElementsByTagName('key'):
             if e.childNodes[0].nodeValue == key:
                 value = e.nextSibling.nextSibling.childNodes[0].nodeValue
 
@@ -46,4 +49,5 @@ class AppForm(forms.ModelForm):
         model = App
         # It is important that plist is validated before name and version
         fields = ('plist', 'ipa', 'is_active', 'name', 'version')
-        widgets = {'name': forms.HiddenInput(), 'version': forms.HiddenInput()}
+        widgets = {'name': forms.HiddenInput({'value': 'default'}),
+                   'version': forms.HiddenInput({'value': 'default'})}
