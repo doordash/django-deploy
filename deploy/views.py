@@ -9,7 +9,7 @@ from deploy.models import App
 def get_app(**kwargs):
     if not 'version' in kwargs:
         try:
-            app = App.objects.filter(name=kwargs.get('name')).latest('added_at')
+            app = App.objects.filter(name=kwargs.get('name')).exclude(is_active=False).latest('added_at')
         except App.DoesNotExist:
             raise Http404
     else:
