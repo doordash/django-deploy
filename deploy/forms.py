@@ -1,4 +1,4 @@
-from xml.dom import minidom
+from plistlib import readPlist
 
 from django import forms
 from deploy.models import App
@@ -35,15 +35,12 @@ class AppForm(forms.ModelForm):
         return self.cleaned_data['version']
 
     def get_key_value_from_plist(self, key):
-        if not hasattr(self, 'dom'):
+        if not hasattr(self, 'plist'):
             plist = self.files['plist']
-            self.dom = minidom.parse(plist)
-        value = None
-        for e in self.dom.getElementsByTagName('key'):
-            if e.childNodes[0].nodeValue == key:
-                value = e.nextSibling.nextSibling.childNodes[0].nodeValue
-
-        return value
+            self.plist = readPlist(plist)
+        data = self.plist['items'][0]
+        metadata = data['metadata']
+        return metadata.get(key, None)
 
     class Meta:
         model = App
