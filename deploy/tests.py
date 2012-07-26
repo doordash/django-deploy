@@ -6,11 +6,12 @@ from django.core.files.base import ContentFile
 from django.db.utils import IntegrityError
 from django.utils import simplejson as json
 from django.template.base import TemplateDoesNotExist
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from deploy.models import App
+from deploy.forms import AppForm
 
-sample_plist = '''
-<?xml version="1.0" encoding="UTF-8"?>
+sample_plist = '''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -45,7 +46,7 @@ sample_plist = '''
 
 class AppTest(TestCase):
     def get_app(self, version):
-        plist_str = sample_plist % ('someapp', version)
+        plist_str = sample_plist % (reverse('deploy-latest-ipa', args=['someapp']), version)
         plist = ContentFile(plist_str.encode('UTF-8'))
         plist.name = 'someapp.plist'
         ipa = ContentFile(b'Some Data')
@@ -109,3 +110,26 @@ class AppTest(TestCase):
         except Exception as e:
             self.assertEqual(TemplateDoesNotExist, e.__class__)
             self.assertTrue('404.html' in e.message)
+
+    def test_form_validation_passes_valid_app(self):
+        new_app = self.get_app('1.1')
+        data = {'name': 'name', 'version': 'version'}  # Name and version still need to be present
+        file_data = {'plist': SimpleUploadedFile('someapp.plist', new_app.plist.read()),
+                     'ipa': SimpleUploadedFile('someapp.ipa', new_app.ipa.read())}
+        form = AppForm(data, file_data)
+        self.assertTrue(form.is_valid())
+
+    def test_form_validation_bad_plist_and_ipa(self):
+        data = {'name': 'name', 'version': 'version'}
+        file_data = {'plist': SimpleUploadedFile('someapp.lkjs', self.app.plist.read()),
+                     'ipa': SimpleUploadedFile('someapp.sdfklj', '')}
+        form = AppForm(data, file_data)
+        self.assertFalse(form.is_valid())
+
+    def test_form_same_app_version(self):
+        data = {'name': 'name', 'version': 'version'}
+        file_data = {'plist': SimpleUploadedFile('someapp.plist()', self.app.plist.read()),
+                     'ipa': SimpleUploadedFile('someapp.ipa()', self.app.ipa.read())}
+        form = AppForm(data, file_data)
+        self.assertFalse(form.is_valid())
+        self.assertTrue('App with this App name and Version already exists' in form.errors.__unicode__())
